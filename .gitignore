@@ -18,5 +18,8 @@ main.js
 # obsidian
 data.json
 
+# Local dev install vault path (per-developer)
+.env.local
+
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
