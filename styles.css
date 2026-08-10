@@ -189,22 +189,18 @@
 }
 
 /*
- * Obsidian's image zoom / lightbox affordance inside feed cards.
+ * Obsidian's per-embed action overlay (`div.embed-actions`) — the magnifying
+ * glass that opens an image in the lightbox.
  *
- * On desktop it only appears on hover, so it costs nothing. On mobile there is
- * no hover, so it is painted permanently — a grey circle on every image in the
- * feed, which at feed scale is a lot of circles.
+ * On desktop it appears on hover. On mobile there is no hover, so it is
+ * painted permanently: a grey circle on every image, and a feed has a lot of
+ * images. Hidden in both, on the same reasoning as the view header and inline
+ * title above — a feed card shows content, not per-note chrome.
  *
- * Scoped to .is-mobile deliberately: desktop hover behaviour is left alone.
- * The selector is broad because the button's class could not be confirmed —
- * it postdates the 1.12.3 desktop build — but it is confined to images inside
- * feed cards, so the blast radius is small. Tighten it once the class is known.
+ * The class is not in Obsidian's 1.12.3 stylesheet; it arrived in a later
+ * build, so treat it as unstable and re-check if circles reappear.
  */
-.is-mobile .bases-feed .image-embed button,
-.is-mobile .bases-feed .image-embed .clickable-icon,
-.is-mobile .bases-feed .image-embed [class*="zoom"],
-.is-mobile .bases-feed .image-embed [class*="lightbox"],
-.is-mobile .bases-feed .image-embed [class*="enlarge"] {
+.bases-feed .embed-actions {
   display: none;
 }
 
