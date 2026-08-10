@@ -223,6 +223,19 @@ describe("hiddenContent filtering", () => {
     expect(out).toContain("after");
   });
 
+  it("strips an embed that targets one view of a base", () => {
+    const text = [
+      "# N",
+      "",
+      "![[2026_cancun_dayplans.base#calendar]]",
+      "",
+      "after",
+    ].join("\n");
+    const out = run(text, { hidden });
+    expect(out).not.toContain("cancun");
+    expect(out).toContain("after");
+  });
+
   it("hits fence and embed forms with the one `base` token", () => {
     const text = [
       "# N",

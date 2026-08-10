@@ -40,14 +40,18 @@ export function buildHiddenContentCss(
     }
 
     rules.push(`${editor} .callout[data-callout="${q}"] { display: none; }`);
-    rules.push(`${editor} .internal-embed[src$=".${q}"] { display: none; }`);
+
+    // An embed's `src` carries the raw link text, so `![[x.base#calendar]]`
+    // gives `x.base#calendar` — which does not *end* with `.base`. Matching
+    // only on the suffix silently missed every embed that targets a specific
+    // view or heading. The `i` flags guard against filename casing.
+    const embed = `:is(.internal-embed[src$=".${q}" i], .internal-embed[src*=".${q}#" i])`;
+    rules.push(`${editor} ${embed} { display: none; }`);
     // Live Preview keeps the source line above the rendered embed widget.
     // This is the most fragile selector in the plugin: it depends on the widget
     // being the *immediate* sibling of its own cm-line. If embeds start showing
     // their `![[...]]` source again, look here first.
-    rules.push(
-      `${editor} .cm-line:has(+ .internal-embed[src$=".${q}"]) { display: none; }`,
-    );
+    rules.push(`${editor} .cm-line:has(+ ${embed}) { display: none; }`);
   }
 
   return rules.join("\n");
