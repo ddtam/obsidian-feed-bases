@@ -237,53 +237,28 @@
 }
 
 /*
- * Tables are the other source of width churn, and a worse one: a wide table
- * sizes its columns from its content, so it can force the card's content box
- * wider than the card. Whatever scrollbar that overflow lands on then toggles,
- * and a toggling scrollbar changes width, which reflows everything.
+ * NOT SOLVED — do not re-attempt these without new evidence.
  *
- * Giving tables their own horizontal scroll means they can never widen the
- * card — the overflow is contained where it originates. `width: fit-content`
- * keeps narrow tables from stretching to full width as a side effect of
- * `display: block`.
+ * Symptom: scrolling an embedded feed past a tall card (the table of images in
+ * 2026-08-06 Work Log) makes `.bases-view` go 640px -> 624px and back. 16px is
+ * a scrollbar width, and it is `.bases-view`'s own width that changes, not its
+ * content box, so the scrollbar belongs to an ancestor rather than to anything
+ * the feed owns.
+ *
+ * Tried and reverted:
+ *   - `scrollbar-gutter: stable` on the feed's own scrollEl: no effect on the
+ *     width, and it made that gutter permanently visible.
+ *   - the same on `.cm-scroller:has(.bases-feed-container)` and friends: no
+ *     effect either, which suggests the scroller that actually toggles is not
+ *     one of those, or its scrollbar is an overlay that `scrollbar-gutter`
+ *     does not apply to.
+ *   - `display: block; overflow-x: auto` on tables: setting one axis to `auto`
+ *     promotes the other from `visible` to `auto`, so this added a *vertical*
+ *     scrollbar to every table. Actively worse.
+ *
+ * Next step is to identify which element gains the scrollbar at the moment the
+ * width changes, rather than inferring it.
  */
-.bases-feed-entry-editor table,
-.bases-feed-entry-excerpt table {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.bases-feed-entry-editor .cm-table-widget,
-.bases-feed-entry-editor .table-wrapper,
-.bases-feed-entry-excerpt .table-wrapper {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/*
- * Reserve the scrollbar gutter on whatever actually scrolls a feed.
- *
- * Measured: as a tall card (a table of images) is measured, the feed's total
- * height jumps, the surrounding scroller gains a vertical scrollbar, and
- * everything inside narrows by its width — `.bases-view` went 640px -> 624px.
- * A width change reflows every card, which changes their heights, which can
- * toggle the scrollbar again, so it flickers instead of settling.
- *
- * The scroller is *not* the feed's own container: for a base embedded in a
- * note it is the note's editor, above `.bases-view`. Hence `:has()` rather
- * than styling our own element — scoped so only scrollers actually containing
- * a feed are affected.
- *
- * Trade-off: the gutter is then always reserved in those notes, so the
- * scrollbar track is visible even when the content fits.
- */
-.cm-scroller:has(.bases-feed-container),
-.markdown-preview-view:has(.bases-feed-container),
-.bases-view:has(> .bases-feed-container) {
-  scrollbar-gutter: stable;
-}
 
 .bases-feed-error {
   color: var(--text-error);
