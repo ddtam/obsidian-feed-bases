@@ -27,6 +27,10 @@ function eq(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** `[[Foo|bar]]`, `#foo`, `Foo#Heading` -> `foo`. */
 export function normalizeTerm(term: string): string {
   let t = term.trim();
@@ -70,15 +74,20 @@ export function findMatchLines(
     }
   }
 
-  if (lines.size > 0) return [...lines].sort((a, b) => a - b);
-
-  // Last resort: a plain textual mention (e.g. a bare alias in prose).
-  const lower = needle.toLowerCase();
-  const out: number[] = [];
+  // Plain textual mentions count too, and are unioned with the structured ones
+  // rather than used only as a fallback. Treating them as a fallback meant a
+  // note that linked the term once made every *unlinked* mention invisible —
+  // so a section headed `## KARSANBIO-4439 summary` was skipped purely because
+  // the ticket happened to be linked further up the same note.
+  //
+  // Bounded by non-word/non-hyphen on both sides so `Proj` doesn't match
+  // `Project` and `KARSANBIO-4439` doesn't match `KARSANBIO-44391`.
+  const bounded = new RegExp(`(?<![\\w-])${escapeRegExp(needle)}(?![\\w-])`, "i");
   text.split("\n").forEach((line, i) => {
-    if (line.toLowerCase().includes(lower)) out.push(i);
+    if (bounded.test(line)) lines.add(i);
   });
-  return out;
+
+  return [...lines].sort((a, b) => a - b);
 }
 
 /**
