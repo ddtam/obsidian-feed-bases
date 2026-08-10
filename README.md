@@ -41,6 +41,40 @@ The original Feed Bases is under review for Community Plugins. This fork is BRAT
 4. Edit notes directly in the feed by clicking on them.
 5. Any changes you make are automatically saved.
 
+## Fork options
+
+**Where they live:** open the base, click the **view selector** (the view's name in the
+toolbar), and choose **Edit view** / the settings icon for that view. The options below appear
+under the built-in ones — you may need to scroll. They are **per view**, not global, so each
+feed view in each `.base` file has its own settings and there is nothing in Obsidian's Settings
+window to find.
+
+| Option | Default | What it does |
+|---|---|---|
+| **Card content** | Live editor | `Live editor` is the original behaviour. `Excerpt only` renders read-only, which is faster and is the only mode where content filtering and section scoping actually remove anything. `Excerpt, editable on click` swaps to an editor when you click a card. |
+| **Hide content** | `todoist-task, todoist, base` | Comma-separated content *kinds* to leave out. Each entry is matched against fenced-code languages, callout types and embed extensions, so `base` hides both an inline ` ```base ` block and an `![[something.base]]` embed. Clear the field to hide nothing. |
+| **Scope to section** | *(blank — off)* | Blank shows whole notes. Enter `auto` to trim each card to the section mentioning the note the base is embedded in, or a literal term such as `[[Project X]]`. **Only has an effect in the excerpt modes** — a live editor is bound to the whole file and cannot be sliced. |
+| **Show linked mentions** | off | The "Linked mentions" pane Obsidian appends to each note. Off also skips computing backlinks per card. |
+| **Maximum card width** | 700 | Slide up to 2000 for near-full-width cards. |
+
+To hide something on a single occurrence rather than everywhere, wrap it in the note:
+
+```markdown
+%% feed:hide %%
+...anything here is left out of the feed...
+%% /feed:hide %%
+```
+
+### How section scoping picks a section
+
+A card is trimmed to the section(s) *mentioning* the term — as a link, a tag, or plain text.
+When the mention is in a heading, that heading's own section is used, including any deeper
+subsections beneath it. When it's in the body, the enclosing section is used. If the term isn't
+found, or is mentioned before the first heading, the whole note is shown rather than nothing.
+
+Note this means a sibling section that doesn't mention the term is **not** pulled in, even if
+it's related — mention the term in that section to include it.
+
 ## License
 
 This project is licensed under the MIT License.
