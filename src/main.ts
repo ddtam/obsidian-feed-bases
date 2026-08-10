@@ -27,11 +27,15 @@ export default class ObsidianFeedPlugin extends Plugin {
         {
           key: "maxCardWidth",
           type: "slider",
-          displayName: "Maximum card width (experimental)",
-          default: 400,
+          // Upstream capped this at 800, which is narrow for a single-column
+          // feed of prose — a section that fits in a few lines in the note
+          // stretches a long way in a 400px column. Slide to the max for
+          // effectively full width.
+          displayName: "Maximum card width",
+          default: 700,
           min: 200,
-          max: 800,
-          step: 10,
+          max: 2000,
+          step: 20,
         },
         {
           key: "showLinkedMentions",
@@ -46,21 +50,24 @@ export default class ObsidianFeedPlugin extends Plugin {
           default: HIDDEN_CONTENT_DEFAULT,
         },
         {
-          key: "sectionScope",
-          type: "text",
-          displayName: "Scope to section mentioning (blank = host note)",
-          default: "",
-        },
-        {
           key: "contentMode",
           type: "dropdown",
           displayName: "Card content",
           default: CONTENT_MODE_DEFAULT,
           options: {
-            "excerpt-edit": "Excerpt, editable on click",
-            excerpt: "Excerpt only (read-only)",
             editor: "Live editor",
+            excerpt: "Excerpt only (read-only)",
+            "excerpt-edit": "Excerpt, editable on click",
           },
+        },
+        {
+          key: "sectionScope",
+          type: "text",
+          // Opt-in: blank does nothing. "auto" resolves to the note an embedded
+          // base sits in. Only has an effect in the excerpt content modes.
+          displayName: "Scope to section (blank = off, or 'auto')",
+          placeholder: "auto, or a term like [[Project X]]",
+          default: "",
         },
       ],
     });

@@ -11,7 +11,13 @@ export const CONTENT_MODES: ContentMode[] = [
   "excerpt-edit",
 ];
 
-export const CONTENT_MODE_DEFAULT: ContentMode = "excerpt-edit";
+/**
+ * Live editor by default: excerpt-edit's swap between rendered and editable was
+ * disorienting in practice, since both entering and leaving it reflow the card.
+ * `hiddenContent` still applies in editor mode (via generated CSS); only
+ * section scoping is inert there, because a MarkdownView owns the whole file.
+ */
+export const CONTENT_MODE_DEFAULT: ContentMode = "editor";
 
 export function asContentMode(value: unknown): ContentMode {
   return CONTENT_MODES.includes(value as ContentMode)

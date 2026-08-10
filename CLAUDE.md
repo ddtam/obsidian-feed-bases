@@ -35,10 +35,17 @@ After any rebuild, **reload Obsidian (Ctrl/Cmd-R)** — esbuild rebuilding is no
 
 | View option | Default | Effect |
 |---|---|---|
-| `contentMode` | `excerpt-edit` | `editor` = upstream behaviour (live editor). `excerpt` = read-only rendered excerpt. `excerpt-edit` = excerpt at rest, live editor for the whole note on click, back on blur. |
+| `contentMode` | `editor` | `editor` = live editor (upstream behaviour). `excerpt` = read-only rendered excerpt. `excerpt-edit` = excerpt at rest, live editor on click, back on blur. |
 | `hiddenContent` | `todoist-task, todoist, base` | Content kinds to strip — see below |
-| `sectionScope` | `""` | Term whose section each card is scoped to; blank falls back to the host note |
+| `sectionScope` | `""` (off) | Blank = whole note. `auto` = the note an embedded base sits in. Otherwise a literal term. Only has an effect in the excerpt modes. |
 | `showLinkedMentions` | `false` | The in-document backlinks pane |
+| `maxCardWidth` | `700` | Upstream capped this at 800; the slider now goes to 2000 |
+
+**Two defaults were walked back after first use**, and the reasons are worth keeping:
+`excerpt-edit` was the initial default, but swapping between rendered and editable reflows the
+card both entering *and* leaving, which reads as the feed jumping around under you. And
+`sectionScope` originally defaulted to the host note — trimming a card to one section is a
+surprising thing to do to someone who didn't ask for it, so it is opt-in now.
 
 **`hiddenContent` matches by kind, not by syntax.** Each token is checked against fenced-code
 language, callout type *and* embed target extension, so `base` hides both an inline ```` ```base ````
@@ -57,7 +64,7 @@ slice — do not "fix" this to walk back to the parent, it is the dominant case 
 organised as `## [[Project]]` with detail nested under it). No match, or a match before any
 heading, falls back to the whole note. The base's own filters are **not** reachable from
 `BasesViewConfig` or `QueryController`, so the term cannot be inferred from the query — hence
-the option plus the host-note fallback.
+the option plus the `auto` keyword.
 
 A **non-configurable** guard drops embeds pointing back at the host note, independent of
 `hiddenContent`, so emptying that option can't re-enable recursive rendering.

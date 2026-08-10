@@ -170,26 +170,33 @@ export class FeedView extends BasesView {
   }
 
   /**
-   * The term whose section each card is scoped to.
+   * The term whose section each card is scoped to, or null for no scoping.
    *
-   * An explicit `sectionScope` wins. Otherwise fall back to the note the base
-   * is embedded in, which is the common case and needs no configuration: a
-   * base embedded in a project note and filtered on
-   * `file.links.contains(this.file.name)` wants exactly the section that links
+   * Opt-in: blank means show the whole note. Trimming a card to one section is
+   * a surprising thing to do to someone who didn't ask for it, so it isn't the
+   * default even though the host note is usually the right term.
+   *
+   * The literal `auto` resolves to the note an embedded base sits in. That is
+   * the case worth the feature: a base embedded in a project note and filtered
+   * on `file.links.contains(this.file.name)` wants exactly the section linking
    * back to that note, so the auto term and the filter agree by construction.
    *
    * Note the base's own filters are not reachable from BasesViewConfig or
-   * QueryController, so the term genuinely cannot be inferred from the query.
+   * QueryController, so the term genuinely cannot be inferred from the query —
+   * hence the option rather than something cleverer.
    */
   private resolveScopeTerm(hostFile: TFile | null): string | null {
-    const explicit = (
+    const configured = (
       (this.config.get("sectionScope") as string | undefined) ?? ""
     ).trim();
-    if (explicit) return explicit;
+    if (!configured) return null;
 
-    // A standalone .base open in its own tab is not a scoping context.
-    if (hostFile && hostFile.extension === "md") return hostFile.basename;
-    return null;
+    if (configured.toLowerCase() === "auto") {
+      // A standalone .base open in its own tab is not a scoping context.
+      return hostFile && hostFile.extension === "md" ? hostFile.basename : null;
+    }
+
+    return configured;
   }
 
   // Bound once, not re-created inside render(). Fresh identities every update
