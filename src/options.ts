@@ -23,10 +23,12 @@ export const FEED_DEFAULTS = {
   showProperties: false,
   multipleColumns: false,
   /**
-   * Upstream defaulted to 400 and capped the slider at 800, which is narrow for
-   * a single-column feed of prose.
+   * Upstream defaulted to 400 and capped the slider at 800. 400 was too narrow
+   * for a single-column feed of prose; 700 turned out to be wider than the
+   * editor's own readable line width, which reads as too much. 550 sits close
+   * to normal text width. The slider still goes to 2000.
    */
-  maxCardWidth: 700,
+  maxCardWidth: 550,
   showLinkedMentions: false,
   hiddenContent: "todoist-task, todoist, base",
   /**

@@ -265,10 +265,16 @@
 .cm-lang-base:has(.bases-feed-container),
 .bases-embed:has(.bases-feed-container),
 .block-language-base:has(.bases-feed-container) {
-  width: 100% !important;
-  max-width: 100% !important;
-  /* Zero the allowance at its source: pinning width alone still left the
-     embed's own inline padding toggling by the same 16px. */
+  /*
+   * Zero the allowance at its source. The measurements showed the 16px was the
+   * embed's own inline padding toggling, not its width — so this is the part
+   * that matters, and it leaves the theme's intended embed width intact.
+   *
+   * An earlier version also forced `width: 100% !important`, which widened the
+   * embed past the text column and threw the base's toolbar (sort / filter /
+   * properties / search / new) out to the window edge. It was never the part
+   * doing the work.
+   */
   --table-drag-space: 0px;
   --container-table-margin: 0px;
   padding-inline: 0 !important;

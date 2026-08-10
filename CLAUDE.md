@@ -39,7 +39,7 @@ After any rebuild, **reload Obsidian (Ctrl/Cmd-R)** — esbuild rebuilding is no
 | `hiddenContent` | `todoist-task, todoist, base` | Content kinds to strip — see below |
 | `sectionScope` | `""` (off) | Blank = whole note. `auto` = the note an embedded base sits in. Otherwise a literal term. Only has an effect in the excerpt modes. |
 | `showLinkedMentions` | `false` | The in-document backlinks pane |
-| `maxCardWidth` | `700` | Upstream capped this at 800; the slider now goes to 2000 |
+| `maxCardWidth` | `550` | Upstream defaulted to 400 and capped at 800; 700 read as wider than normal text. Slider now goes to 2000 |
 
 **Two defaults were walked back after first use**, and the reasons are worth keeping:
 `excerpt-edit` was the initial default, but swapping between rendered and editable reflows the

@@ -55,7 +55,7 @@ window to find.
 | **Hide content** | `todoist-task, todoist, base` | Comma-separated content *kinds* to leave out. Each entry is matched against fenced-code languages, callout types and embed extensions, so `base` hides both an inline ` ```base ` block and an `![[something.base]]` embed. Clear the field to hide nothing. |
 | **Scope to section** | *(blank — off)* | Blank shows whole notes. Enter `auto` to trim each card to the section mentioning the note the base is embedded in, or a literal term such as `[[Project X]]`. **Only has an effect in the excerpt modes** — a live editor is bound to the whole file and cannot be sliced. |
 | **Show linked mentions** | off | The "Linked mentions" pane Obsidian appends to each note. Off also skips computing backlinks per card. |
-| **Maximum card width** | 700 | Slide up to 2000 for near-full-width cards. |
+| **Maximum card width** | 550 | Roughly the editor's readable line width. Slide up to 2000 for near-full-width cards. |
 
 To hide something on a single occurrence rather than everywhere, wrap it in the note:
 
