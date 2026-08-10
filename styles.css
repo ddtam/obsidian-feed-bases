@@ -262,6 +262,29 @@
   overflow-x: auto;
 }
 
+/*
+ * Reserve the scrollbar gutter on whatever actually scrolls a feed.
+ *
+ * Measured: as a tall card (a table of images) is measured, the feed's total
+ * height jumps, the surrounding scroller gains a vertical scrollbar, and
+ * everything inside narrows by its width — `.bases-view` went 640px -> 624px.
+ * A width change reflows every card, which changes their heights, which can
+ * toggle the scrollbar again, so it flickers instead of settling.
+ *
+ * The scroller is *not* the feed's own container: for a base embedded in a
+ * note it is the note's editor, above `.bases-view`. Hence `:has()` rather
+ * than styling our own element — scoped so only scrollers actually containing
+ * a feed are affected.
+ *
+ * Trade-off: the gutter is then always reserved in those notes, so the
+ * scrollbar track is visible even when the content fits.
+ */
+.cm-scroller:has(.bases-feed-container),
+.markdown-preview-view:has(.bases-feed-container),
+.bases-view:has(> .bases-feed-container) {
+  scrollbar-gutter: stable;
+}
+
 .bases-feed-error {
   color: var(--text-error);
   font-size: var(--font-ui-small);
