@@ -37,6 +37,18 @@ export class FeedView extends BasesView {
       cls: `bases-feed-container is-loading ${this.hiddenStyles.scopeClass}`,
       attr: { tabIndex: 0 },
     });
+
+    // Reserve the scrollbar gutter on our scroll container.
+    //
+    // Feed cards contain images, which load asynchronously and change a card's
+    // height after the virtualizer has already measured it. That changes the
+    // total height, which can make this scrollbar appear or disappear, which
+    // changes the width of every card, which reflows their text, which changes
+    // their heights again — a loop that presents as a scrollbar flashing in and
+    // out at the same spot every time (always just after an image).
+    //
+    // Reserving the gutter makes the width constant, so the loop cannot start.
+    this.scrollEl.style.scrollbarGutter = "stable";
   }
 
   onload(): void {

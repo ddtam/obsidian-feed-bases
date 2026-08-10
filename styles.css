@@ -223,6 +223,19 @@
   display: none !important;
 }
 
+/*
+ * Images are the main source of layout churn in a feed: they load
+ * asynchronously, so a card's size changes after the virtualizer has measured
+ * it. Clamping them to the card's width means an image can never overflow and
+ * trigger a horizontal scrollbar, and `height: auto` keeps the aspect ratio
+ * while the height settles once rather than twice.
+ */
+.bases-feed-entry-editor img,
+.bases-feed-entry-excerpt img {
+  max-width: 100%;
+  height: auto;
+}
+
 .bases-feed-error {
   color: var(--text-error);
   font-size: var(--font-ui-small);
