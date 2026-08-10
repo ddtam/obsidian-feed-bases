@@ -262,30 +262,35 @@
  * tables keep the theme's drag space. Harmless without Minimal, where the
  * embed is already full width.
  */
-.cm-lang-base:has(.bases-feed-container),
-.bases-embed:has(.bases-feed-container),
-.block-language-base:has(.bases-feed-container) {
+body:has(.bases-feed-container) {
   /*
-   * Zero the drag-space allowance at its source, and pin the padding it feeds.
+   * `--table-drag-space` must be zeroed at BODY level. Every tighter scope was
+   * measured and every one of them still oscillated:
    *
-   * `--table-drag-space` is what makes the width move: Minimal spends it in
-   * both `--container-table-max-width: calc(var(--max-width) + <space> * 2)`
-   * and `--container-table-margin: calc(<margin> - <space>)`, and the
-   * allowance applies and un-applies as tables scroll through. Zeroing it
-   * makes both calcs constant while leaving them as calcs, so the theme's
-   * centring still works.
+   *   baseline                                  [572, 588]  oscillates
+   *   .bases-embed:has(feed)  drag-space:0      [572, 588]  oscillates
+   *   .cm-lang-base           drag-space:0      [572, 588]  oscillates
+   *   .cm-content             drag-space:0      [572, 588]  oscillates
+   *   .cm-sizer:has(feed)     drag-space:0      [572, 588]  oscillates
+   *   .markdown-source-view:has(feed)           [572, 588]  oscillates
+   *   body:has(feed)          drag-space:0      [588]       STABLE
    *
-   * Do NOT add these back — each was tried and each broke something without
-   * fixing anything:
-   *   - `width: 100% !important` widened the embed past the text column and
-   *     threw the base's toolbar out to the window edge.
-   *   - `--container-table-margin: 0px` left-aligned the whole embed, because
-   *     one of the values Minimal assigns that variable is `auto`, which is
-   *     what centres it. Zeroing the drag space above is the safe way to
-   *     stabilise that margin.
+   * Minimal consumes the variable near the top of the cascade, so setting it
+   * on the embed or any mid-level ancestor is too late — the width has already
+   * been computed above.
+   *
+   * Cost: inside a note containing a feed, Minimal's table drag-handle space
+   * is zeroed for real tables too. Contained, and worth it.
+   *
+   * Things that do NOT work — all measured, none of them again:
+   *   - `padding-inline: 0` on the embed: computed padding is already 0 in
+   *     every state, so it changes nothing. The 16px is the `width` property.
+   *   - `width: 100% !important`: widens the embed past the text column and
+   *     throws the base toolbar to the window edge.
+   *   - `--container-table-margin: 0px`: left-aligns the embed, because one of
+   *     the values Minimal assigns it is `auto`, which is what centres it.
    */
   --table-drag-space: 0px;
-  padding-inline: 0 !important;
 }
 
 .bases-feed-error {
