@@ -266,21 +266,25 @@
 .bases-embed:has(.bases-feed-container),
 .block-language-base:has(.bases-feed-container) {
   /*
-   * Pin the inline padding, and nothing else.
+   * Zero the drag-space allowance at its source, and pin the padding it feeds.
    *
-   * The measurement showed the 16px was this element's own inline padding
-   * toggling — its width was pinned at the time and it still moved — so this
-   * single declaration is the whole fix.
+   * `--table-drag-space` is what makes the width move: Minimal spends it in
+   * both `--container-table-max-width: calc(var(--max-width) + <space> * 2)`
+   * and `--container-table-margin: calc(<margin> - <space>)`, and the
+   * allowance applies and un-applies as tables scroll through. Zeroing it
+   * makes both calcs constant while leaving them as calcs, so the theme's
+   * centring still works.
    *
-   * Two earlier overrides here were wrong and are recorded so they don't come
-   * back:
+   * Do NOT add these back — each was tried and each broke something without
+   * fixing anything:
    *   - `width: 100% !important` widened the embed past the text column and
    *     threw the base's toolbar out to the window edge.
    *   - `--container-table-margin: 0px` left-aligned the whole embed, because
    *     one of the values Minimal assigns that variable is `auto`, which is
-   *     what centres it.
-   * Neither was doing any of the work.
+   *     what centres it. Zeroing the drag space above is the safe way to
+   *     stabilise that margin.
    */
+  --table-drag-space: 0px;
   padding-inline: 0 !important;
 }
 
