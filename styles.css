@@ -200,8 +200,15 @@
  * The class is not in Obsidian's 1.12.3 stylesheet; it arrived in a later
  * build, so treat it as unstable and re-check if circles reappear.
  */
-.bases-feed .embed-actions {
-  display: none;
+.bases-feed .embed-actions,
+.bases-feed-entry-content .embed-actions {
+  /*
+   * !important is load-bearing, not lazy. Obsidian's own rule for this overlay
+   * carries more class selectors than anything scoped to a feed card can, so a
+   * plain `.bases-feed .embed-actions` matches and still loses on specificity —
+   * which is exactly how the first attempt failed.
+   */
+  display: none !important;
 }
 
 .bases-feed-error {
