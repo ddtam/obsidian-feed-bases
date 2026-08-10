@@ -1,16 +1,20 @@
-import {
-  BasesEntry,
-  BasesPropertyId,
-  BasesView,
-  Menu,
-  QueryController,
-} from "obsidian";
+import { BasesEntry, BasesView, Menu, QueryController, TFile } from "obsidian";
 import { StrictMode } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { FeedReactView } from "./FeedReactView";
+import { asContentMode } from "./FeedEntryCard";
 import { AppContext } from "./context";
+import { HIDDEN_CONTENT_DEFAULT, parseHiddenContent } from "./hidden-content";
+import { HiddenContentStyles } from "./hidden-content-styles";
 
 export const FeedViewType = "feed";
+
+// Hoisted: constructing a collator (or passing an options bag to localeCompare)
+// per comparison is the slow path.
+const TITLE_COLLATOR = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 export class FeedView extends BasesView {
   type = FeedViewType;
@@ -19,12 +23,17 @@ export class FeedView extends BasesView {
   root: Root | null = null;
 
   private entries: BasesEntry[] = [];
+  private hiddenStyles = new HiddenContentStyles();
+  private hiddenContentRaw: string | null = null;
+  private hiddenContentParsed: Set<string> = new Set();
 
   constructor(controller: QueryController, scrollEl: HTMLElement) {
     super(controller);
     this.scrollEl = scrollEl;
     this.containerEl = scrollEl.createDiv({
-      cls: "bases-feed-container is-loading",
+      // hiddenStyles.scopeClass keeps this view's generated rules from
+      // applying to another base's feed.
+      cls: `bases-feed-container is-loading ${this.hiddenStyles.scopeClass}`,
       attr: { tabIndex: 0 },
     });
   }
@@ -35,9 +44,13 @@ export class FeedView extends BasesView {
 
   onunload() {
     if (this.root) {
+      // Unmounting runs every card's ref cleanup, which is what releases the
+      // detached leaves and their editors (see mountEntryEditor). Closing the
+      // base therefore reclaims them; before that cleanup existed, it didn't.
       this.root.unmount();
       this.root = null;
     }
+    this.hiddenStyles.destroy();
     this.entries = [];
   }
 
@@ -64,84 +77,24 @@ export class FeedView extends BasesView {
       return;
     }
 
-    this.entries = [...this.data.data].filter(
+    // BasesQueryResult.data already has the user's sort and limit applied
+    // ("Note that data from BasesQueryResult will be presorted" — getSort()'s
+    // own doc comment). Re-sorting here reproduced that ordering at the cost of
+    // an O(n log n) pass calling entry.getValue twice per comparison, which for
+    // a formula property may run the formula evaluator. So: trust the order.
+    this.entries = this.data.data.filter(
       (entry) => entry.file.extension === "md",
     );
 
-    const sort = this.config.getSort();
-    const firstSortProperty = sort?.[0]?.property;
-    // Normalize direction to 'ASC' | 'DESC'; default to ASC for alphabetical title sort
-    const firstSortDirection = sort?.[0]?.direction ?? "ASC";
-    // Always call sort with a comparator. If no property selected, default to file title A–Z.
-    this.entries.sort(
-      this.getEntryComparator(firstSortProperty, firstSortDirection),
-    );
+    // Only when the user has configured no sort at all is the incoming order
+    // unspecified; fall back to file title A–Z with a hoisted collator.
+    if (this.config.getSort().length === 0) {
+      this.entries.sort((a, b) =>
+        TITLE_COLLATOR.compare(a.file.basename, b.file.basename),
+      );
+    }
 
     this.renderReactFeed();
-  }
-
-  // Build a comparator for entries based on an optional property and direction.
-  // If no property is provided, defaults to sorting by file title (basename) A–Z.
-  private getEntryComparator(
-    property?: BasesPropertyId,
-    direction: "ASC" | "DESC" = "ASC",
-  ): (a: BasesEntry, b: BasesEntry) => number {
-    if (property) {
-      return (a: BasesEntry, b: BasesEntry) => {
-        const valueA = this.getPropertyValue(a, property);
-        const valueB = this.getPropertyValue(b, property);
-
-        let compareValue = 0;
-        if (valueA === null && valueB === null) {
-          compareValue = 0;
-        } else if (valueA === null) {
-          compareValue = 1; // nulls last
-        } else if (valueB === null) {
-          compareValue = -1; // nulls last
-        } else if (typeof valueA === "number" && typeof valueB === "number") {
-          compareValue = valueA - valueB;
-        } else {
-          compareValue = String(valueA).localeCompare(
-            String(valueB),
-            undefined,
-            {
-              numeric: true,
-              sensitivity: "base",
-            },
-          );
-        }
-
-        return direction === "ASC" ? compareValue : -compareValue;
-      };
-    }
-
-    // Default: sort by file title (basename) A–Z, case-insensitive, numeric-aware
-    return (a: BasesEntry, b: BasesEntry) =>
-      a.file.basename.localeCompare(b.file.basename, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-  }
-
-  private getPropertyValue(
-    entry: BasesEntry,
-    propId: BasesPropertyId,
-  ): string | number | null {
-    try {
-      const value = entry.getValue(propId);
-      if (!value || !value.isTruthy()) return null;
-
-      // Try to get a comparable value
-      const valueObj = value as unknown;
-      if (valueObj instanceof Date) return valueObj.getTime();
-      if (typeof valueObj === "object" && valueObj && "valueOf" in valueObj) {
-        return (valueObj as { valueOf: () => string | number }).valueOf();
-      }
-      const str = value.toString();
-      return str && str.trim().length > 0 ? str : null;
-    } catch {
-      return null;
-    }
   }
 
   private renderReactFeed(): void {
@@ -155,6 +108,28 @@ export class FeedView extends BasesView {
       (this.config.get("multipleColumns") as boolean | undefined) ?? false;
     const maxCardWidth =
       (this.config.get("maxCardWidth") as number | undefined) ?? 400;
+    const showLinkedMentions =
+      (this.config.get("showLinkedMentions") as boolean | undefined) ?? false;
+
+    const contentMode = asContentMode(this.config.get("contentMode"));
+    const hiddenContent = this.hiddenContentSet(
+      (this.config.get("hiddenContent") as string | undefined) ??
+        HIDDEN_CONTENT_DEFAULT,
+    );
+
+    // Editor mode can only hide this content with CSS; excerpt mode strips it
+    // from the markdown before rendering, so the block never runs at all.
+    this.hiddenStyles.apply(hiddenContent);
+
+    const hostFile = this.app.workspace.getActiveFile();
+    const scopeTerm = this.resolveScopeTerm(hostFile);
+
+    // Drives the CSS fallback for the in-document backlinks pane; the editor
+    // also tries to unload the component outright (see mountEntryEditor).
+    this.containerEl.toggleClass(
+      "bases-feed-hide-mentions",
+      !showLinkedMentions,
+    );
 
     this.root.render(
       <StrictMode>
@@ -163,24 +138,78 @@ export class FeedView extends BasesView {
             entries={this.entries}
             scrollElement={this.scrollEl}
             showProperties={showProperties}
+            showLinkedMentions={showLinkedMentions}
+            contentMode={contentMode}
+            hiddenContent={hiddenContent}
+            scopeTerm={scopeTerm}
+            hostBasename={hostFile?.basename ?? null}
             multipleColumns={multipleColumns}
             maxCardWidth={maxCardWidth}
-            onEntryClick={(entry: BasesEntry, isModEvent: boolean) => {
-              this.app.workspace
-                .openLinkText(entry.file.path, "", isModEvent)
-                .catch((err) => {
-                  console.error("Failed to open link:", err);
-                });
-            }}
-            onEntryContextMenu={(evt: React.MouseEvent, entry: BasesEntry) => {
-              evt.preventDefault();
-              this.showEntryContextMenu(evt.nativeEvent, entry);
-            }}
+            onEntryClick={this.handleEntryClick}
+            onEntryContextMenu={this.handleEntryContextMenu}
           />
         </AppContext.Provider>
       </StrictMode>,
     );
   }
+
+  /**
+   * Parse `hiddenContent` at most once per distinct value.
+   *
+   * A fresh Set on every render would be a new prop identity, which defeats
+   * React.memo on the card and — because the Set is a dependency of the
+   * excerpt's ref callback — would tear down and re-render every visible
+   * excerpt on each data update.
+   */
+  private hiddenContentSet(raw: string): Set<string> {
+    if (raw !== this.hiddenContentRaw) {
+      this.hiddenContentRaw = raw;
+      this.hiddenContentParsed = parseHiddenContent(raw);
+    }
+    return this.hiddenContentParsed;
+  }
+
+  /**
+   * The term whose section each card is scoped to.
+   *
+   * An explicit `sectionScope` wins. Otherwise fall back to the note the base
+   * is embedded in, which is the common case and needs no configuration: a
+   * base embedded in a project note and filtered on
+   * `file.links.contains(this.file.name)` wants exactly the section that links
+   * back to that note, so the auto term and the filter agree by construction.
+   *
+   * Note the base's own filters are not reachable from BasesViewConfig or
+   * QueryController, so the term genuinely cannot be inferred from the query.
+   */
+  private resolveScopeTerm(hostFile: TFile | null): string | null {
+    const explicit = (
+      (this.config.get("sectionScope") as string | undefined) ?? ""
+    ).trim();
+    if (explicit) return explicit;
+
+    // A standalone .base open in its own tab is not a scoping context.
+    if (hostFile && hostFile.extension === "md") return hostFile.basename;
+    return null;
+  }
+
+  // Bound once, not re-created inside render(). Fresh identities every update
+  // would defeat React.memo on the card and, through the card's ref deps,
+  // rebuild editors that had no reason to change.
+  private handleEntryClick = (entry: BasesEntry, isModEvent: boolean): void => {
+    this.app.workspace
+      .openLinkText(entry.file.path, "", isModEvent)
+      .catch((err) => {
+        console.error("Failed to open link:", err);
+      });
+  };
+
+  private handleEntryContextMenu = (
+    evt: React.MouseEvent,
+    entry: BasesEntry,
+  ): void => {
+    evt.preventDefault();
+    this.showEntryContextMenu(evt.nativeEvent, entry);
+  };
 
   private showEntryContextMenu(evt: MouseEvent, entry: BasesEntry): void {
     const file = entry.file;

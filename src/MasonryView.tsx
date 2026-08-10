@@ -1,4 +1,4 @@
-import { App, BasesEntry, MarkdownView, WorkspaceLeaf } from "obsidian";
+import { App, BasesEntry } from "obsidian";
 import React, {
   useCallback,
   useEffect,
@@ -7,6 +7,12 @@ import React, {
   useState,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { ContentMode, FeedEntryCard } from "./FeedEntryCard";
+import {
+  CONTAINER_PADDING,
+  EDITOR_OVERSCAN,
+  measureFeedElement,
+} from "./measure";
 import { useApp } from "./hooks";
 
 export const MasonryView: React.FC<MasonryViewProps> = ({
@@ -15,6 +21,11 @@ export const MasonryView: React.FC<MasonryViewProps> = ({
   onEntryContextMenu,
   scrollElement,
   showProperties,
+  showLinkedMentions,
+  contentMode,
+  hiddenContent,
+  scopeTerm,
+  hostBasename,
   maxCardWidth,
 }) => {
   const app = useApp();
@@ -25,25 +36,32 @@ export const MasonryView: React.FC<MasonryViewProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const updateWidth = () => {
-      if (containerRef.current) {
-        const width = containerRef.current.offsetWidth;
-
-        // Calculate column count based on container width and max card width
-        // Account for gaps between columns (16px per gap)
-        const gapSize = 16;
-        const availableWidth = width - gapSize * 2; // padding on sides
-        const cols = Math.max(
-          1,
-          Math.floor((availableWidth + gapSize) / (maxCardWidth + gapSize)),
-        );
-        setColumnCount(cols);
-      }
+    const columnsForWidth = (width: number) => {
+      // Account for gaps between columns (16px per gap)
+      const gapSize = 16;
+      const availableWidth = width - gapSize * 2; // padding on sides
+      return Math.max(
+        1,
+        Math.floor((availableWidth + gapSize) / (maxCardWidth + gapSize)),
+      );
     };
 
-    updateWidth();
+    let lastWidth = containerRef.current.offsetWidth;
+    setColumnCount(columnsForWidth(lastWidth));
 
-    const resizeObserver = new ResizeObserver(updateWidth);
+    // The observer fires on height changes too — and this container's height
+    // changes constantly as rows are measured and async content lands. Reading
+    // offsetWidth on each of those forces a layout during scroll for a result
+    // that hasn't changed, so take the width from the entry and bail early.
+    const resizeObserver = new ResizeObserver((observed) => {
+      const box = observed[0]?.borderBoxSize?.[0];
+      const width = box
+        ? box.inlineSize
+        : (containerRef.current?.offsetWidth ?? lastWidth);
+      if (width === lastWidth) return;
+      lastWidth = width;
+      setColumnCount(columnsForWidth(width));
+    });
     resizeObserver.observe(containerRef.current);
 
     return () => {
@@ -79,6 +97,11 @@ export const MasonryView: React.FC<MasonryViewProps> = ({
               scrollElement={scrollElement}
               app={app}
               showProperties={showProperties}
+              showLinkedMentions={showLinkedMentions}
+              contentMode={contentMode}
+              hiddenContent={hiddenContent}
+              scopeTerm={scopeTerm}
+              hostBasename={hostBasename}
               onEntryClick={onEntryClick}
               onEntryContextMenu={onEntryContextMenu}
             />
@@ -94,32 +117,31 @@ const MasonryColumn: React.FC<MasonryColumnProps> = ({
   scrollElement,
   app,
   showProperties,
+  showLinkedMentions,
+  contentMode,
+  hiddenContent,
+  scopeTerm,
+  hostBasename,
   onEntryClick,
   onEntryContextMenu,
 }) => {
   const getScrollEl = useMemo(() => () => scrollElement, [scrollElement]);
 
+  const getItemKey = useCallback(
+    (index: number) => entries[index]?.file.path ?? index,
+    [entries],
+  );
+
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: getScrollEl,
+    getItemKey,
     estimateSize: () => 280,
-    overscan: 5,
-    measureElement: (element, entry, instance) => {
-      const direction = instance.scrollDirection;
-      if (direction === "forward" || direction === null) {
-        return (
-          (element as HTMLElement | null)?.getBoundingClientRect().height ?? 0
-        );
-      } else {
-        // Don't remeasure if we are scrolling up to prevent stuttering
-        const indexKey = Number(
-          (element as HTMLElement).getAttribute("data-index"),
-        );
-        // @ts-ignore - accessing private property for performance fix
-        const cacheMeasurement = instance.itemSizeCache.get(indexKey);
-        return cacheMeasurement ?? 0;
-      }
-    },
+    // Note this is per column, so the mounted-editor count is
+    // columnCount * (visible + 2 * overscan).
+    overscan: EDITOR_OVERSCAN,
+    scrollMargin: CONTAINER_PADDING,
+    measureElement: measureFeedElement,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -140,13 +162,21 @@ const MasonryColumn: React.FC<MasonryColumnProps> = ({
                 ref={rowVirtualizer.measureElement}
                 className="bases-feed-virtual-item"
                 style={{
-                  transform: `translateY(${vi.start}px)`,
+                  // See the single-column view: vi.start includes scrollMargin.
+                  transform: `translateY(${
+                    vi.start - rowVirtualizer.options.scrollMargin
+                  }px)`,
                 }}
               >
-                <FeedEntry
+                <FeedEntryCard
                   entry={entry}
                   app={app}
                   showProperties={showProperties}
+                  showLinkedMentions={showLinkedMentions}
+                  contentMode={contentMode}
+                  hiddenContent={hiddenContent}
+                  scopeTerm={scopeTerm}
+                  hostBasename={hostBasename}
                   onEntryClick={onEntryClick}
                   onEntryContextMenu={onEntryContextMenu}
                 />
@@ -159,96 +189,6 @@ const MasonryColumn: React.FC<MasonryColumnProps> = ({
   );
 };
 
-const FeedEntry: React.FC<FeedEntryProps> = ({
-  entry,
-  app,
-  showProperties,
-  onEntryClick,
-  onEntryContextMenu,
-}) => {
-  const handleTitleClick = (evt: React.MouseEvent) => {
-    evt.preventDefault();
-    const isModEvent = evt.ctrlKey || evt.metaKey;
-    onEntryClick(entry, isModEvent);
-  };
-
-  const handleContextMenu = (evt: React.MouseEvent) => {
-    onEntryContextMenu(evt, entry);
-  };
-
-  const handleHover = (evt: React.MouseEvent) => {
-    if (app) {
-      app.workspace.trigger("hover-link", {
-        event: evt.nativeEvent,
-        source: "bases",
-        hoverParent: app.renderContext,
-        targetEl: evt.currentTarget,
-        linktext: entry.file.path,
-      });
-    }
-  };
-
-  const setEditorHost = useCallback(
-    (node: HTMLDivElement) => {
-      let alive = true;
-      // @ts-ignore using internal API
-      const leaf = new WorkspaceLeaf(app);
-      void (async () => {
-        try {
-          await leaf.openFile(entry.file, {
-            state: { mode: "source", source: false },
-          });
-          if (!alive) return;
-
-          const view = leaf.view;
-          if (!(view instanceof MarkdownView)) {
-            node.replaceChildren();
-            const err = node.createDiv("bases-feed-error");
-            err.setText("Failed to load Markdown editor");
-            return;
-          }
-
-          node.replaceChildren(view.containerEl);
-        } catch (e) {
-          if (alive) console.error("Error setting up editor:", e);
-        }
-      })();
-
-      return () => {
-        alive = false;
-        node.replaceChildren();
-      };
-    },
-    [app, entry.file],
-  );
-
-  return (
-    <div className="bases-feed-entry" onContextMenu={handleContextMenu}>
-      <div className="bases-feed-entry-header">
-        <a
-          className="bases-feed-entry-title"
-          onClick={handleTitleClick}
-          onMouseEnter={handleHover}
-          href="#"
-        >
-          {entry.file.basename}
-        </a>
-      </div>
-
-      <div className="bases-feed-entry-content">
-        <div
-          ref={setEditorHost}
-          className="bases-feed-entry-editor"
-          style={
-            {
-              "--metadata-display-editing": showProperties ? "block" : "none",
-            } as React.CSSProperties
-          }
-        />
-      </div>
-    </div>
-  );
-};
 
 // Props
 
@@ -258,6 +198,11 @@ type MasonryViewProps = {
   onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
   scrollElement: HTMLElement;
   showProperties: boolean;
+  showLinkedMentions: boolean;
+  contentMode: ContentMode;
+  hiddenContent: Set<string>;
+  scopeTerm: string | null;
+  hostBasename: string | null;
   maxCardWidth: number;
 };
 
@@ -266,14 +211,12 @@ type MasonryColumnProps = {
   scrollElement: HTMLElement;
   app: App;
   showProperties: boolean;
+  showLinkedMentions: boolean;
+  contentMode: ContentMode;
+  hiddenContent: Set<string>;
+  scopeTerm: string | null;
+  hostBasename: string | null;
   onEntryClick: (entry: BasesEntry, isModEvent: boolean) => void;
   onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
 };
 
-type FeedEntryProps = {
-  entry: BasesEntry;
-  app: App;
-  showProperties: boolean;
-  onEntryClick: (entry: BasesEntry, isModEvent: boolean) => void;
-  onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
-};

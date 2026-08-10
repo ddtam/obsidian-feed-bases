@@ -141,6 +141,53 @@
   display: none;
 }
 
+/*
+ * Linked Mentions ("backlinks in document").
+ *
+ * Obsidian gives the pane a minimum height that reads as a stray gap under
+ * every card. When the pane is shown, flatten that; when the "Show linked
+ * mentions" view option is off, hide it outright.
+ *
+ * The plugin also attempts to unload the backlinks component when the option is
+ * off (see mountEntryEditor) — that is the real fix, since it stops each
+ * visible card computing backlinks at all. There is no public API for it, so
+ * this rule is the guaranteed fallback.
+ */
+.bases-feed .embedded-backlinks {
+  min-height: 0;
+}
+
+.bases-feed-hide-mentions .embedded-backlinks {
+  display: none;
+}
+
+/* Read-only excerpt cards (contentMode: excerpt / excerpt-edit) */
+.bases-feed-entry-excerpt {
+  font-family: var(--font-text);
+  font-size: var(--font-text-size);
+  line-height: 1.6;
+  /*
+   * Neutral placeholder while the excerpt resolves. Without a height here an
+   * empty card can be measured at ~0 and, if that happens while scrolling up,
+   * the virtualizer keeps the stale value (see measure.ts).
+   */
+  min-height: 2em;
+}
+
+.bases-feed-entry-excerpt > :first-child {
+  margin-block-start: 0;
+}
+
+.bases-feed-entry-excerpt > :last-child {
+  margin-block-end: 0;
+}
+
+.bases-feed-excerpt-empty {
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+}
+
 .bases-feed-error {
   color: var(--text-error);
   font-size: var(--font-ui-small);

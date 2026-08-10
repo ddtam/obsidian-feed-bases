@@ -1,8 +1,14 @@
-import { App, BasesEntry, MarkdownView, WorkspaceLeaf } from "obsidian";
+import { BasesEntry } from "obsidian";
 import React, { useCallback, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useApp } from "./hooks";
+import { ContentMode, FeedEntryCard } from "./FeedEntryCard";
 import { MasonryView } from "./MasonryView";
+import {
+  CONTAINER_PADDING,
+  EDITOR_OVERSCAN,
+  measureFeedElement,
+} from "./measure";
 
 export const FeedReactView: React.FC<FeedReactViewProps> = ({
   entries,
@@ -10,6 +16,11 @@ export const FeedReactView: React.FC<FeedReactViewProps> = ({
   onEntryContextMenu,
   scrollElement,
   showProperties,
+  showLinkedMentions,
+  contentMode,
+  hiddenContent,
+  scopeTerm,
+  hostBasename,
   multipleColumns = false,
   maxCardWidth = 400,
 }) => {
@@ -22,6 +33,11 @@ export const FeedReactView: React.FC<FeedReactViewProps> = ({
         onEntryContextMenu={onEntryContextMenu}
         scrollElement={scrollElement}
         showProperties={showProperties}
+        showLinkedMentions={showLinkedMentions}
+        contentMode={contentMode}
+        hiddenContent={hiddenContent}
+        scopeTerm={scopeTerm}
+        hostBasename={hostBasename}
         maxCardWidth={maxCardWidth}
       />
     );
@@ -35,6 +51,11 @@ export const FeedReactView: React.FC<FeedReactViewProps> = ({
       onEntryContextMenu={onEntryContextMenu}
       scrollElement={scrollElement}
       showProperties={showProperties}
+      showLinkedMentions={showLinkedMentions}
+      contentMode={contentMode}
+      hiddenContent={hiddenContent}
+      scopeTerm={scopeTerm}
+      hostBasename={hostBasename}
       maxCardWidth={maxCardWidth}
     />
   );
@@ -46,32 +67,36 @@ const SingleColumnView: React.FC<SingleColumnViewProps> = ({
   onEntryContextMenu,
   scrollElement,
   showProperties,
+  showLinkedMentions,
+  contentMode,
+  hiddenContent,
+  scopeTerm,
+  hostBasename,
   maxCardWidth,
 }) => {
   const app = useApp();
   const getScrollEl = useMemo(() => () => scrollElement, [scrollElement]);
 
+  // Keying by file path rather than index is what stops a re-order from
+  // rebuilding a row's editor onto a different note — which, when the base is
+  // sorted by mtime, meant typing in a card destroyed the editor under the
+  // cursor as soon as the edit bumped the note's position.
+  const getItemKey = useCallback(
+    (index: number) => entries[index]?.file.path ?? index,
+    [entries],
+  );
+
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: getScrollEl,
+    getItemKey,
     estimateSize: () => 280,
-    overscan: 8,
-    measureElement: (element, entry, instance) => {
-      const direction = instance.scrollDirection;
-      if (direction === "forward" || direction === null) {
-        return (
-          (element as HTMLElement | null)?.getBoundingClientRect().height ?? 0
-        );
-      } else {
-        // Don't remeasure if we are scrolling up to prevent stuttering
-        const indexKey = Number(
-          (element as HTMLElement).getAttribute("data-index"),
-        );
-        // @ts-ignore - accessing private property for performance fix (see https://github.com/TanStack/virtual/issues/659)
-        const cacheMeasurement = instance.itemSizeCache.get(indexKey);
-        return cacheMeasurement ?? 0;
-      }
-    },
+    // Overscan expands in both directions, and here every extra row is a whole
+    // editor rather than a cheap div. Kept low deliberately.
+    overscan: EDITOR_OVERSCAN,
+    // The container is padded, so content does not begin at scroll offset 0.
+    scrollMargin: CONTAINER_PADDING,
+    measureElement: measureFeedElement,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -98,13 +123,22 @@ const SingleColumnView: React.FC<SingleColumnViewProps> = ({
                   ref={rowVirtualizer.measureElement}
                   className="bases-feed-virtual-item"
                   style={{
-                    transform: `translateY(${vi.start}px)`,
+                    // vi.start is offset by scrollMargin, while getTotalSize()
+                    // subtracts it — so it has to come back off here.
+                    transform: `translateY(${
+                      vi.start - rowVirtualizer.options.scrollMargin
+                    }px)`,
                   }}
                 >
-                  <FeedEntry
+                  <FeedEntryCard
                     entry={entry}
                     app={app}
                     showProperties={showProperties}
+                    showLinkedMentions={showLinkedMentions}
+                    contentMode={contentMode}
+                    hiddenContent={hiddenContent}
+                    scopeTerm={scopeTerm}
+                    hostBasename={hostBasename}
                     onEntryClick={onEntryClick}
                     onEntryContextMenu={onEntryContextMenu}
                   />
@@ -118,96 +152,6 @@ const SingleColumnView: React.FC<SingleColumnViewProps> = ({
   );
 };
 
-const FeedEntry: React.FC<FeedEntryProps> = ({
-  entry,
-  app,
-  showProperties,
-  onEntryClick,
-  onEntryContextMenu,
-}) => {
-  const handleTitleClick = (evt: React.MouseEvent) => {
-    evt.preventDefault();
-    const isModEvent = evt.ctrlKey || evt.metaKey;
-    onEntryClick(entry, isModEvent);
-  };
-
-  const handleContextMenu = (evt: React.MouseEvent) => {
-    onEntryContextMenu(evt, entry);
-  };
-
-  const handleHover = (evt: React.MouseEvent) => {
-    if (app) {
-      app.workspace.trigger("hover-link", {
-        event: evt.nativeEvent,
-        source: "bases",
-        hoverParent: app.renderContext,
-        targetEl: evt.currentTarget,
-        linktext: entry.file.path,
-      });
-    }
-  };
-
-  const setEditorHost = useCallback(
-    (node: HTMLDivElement) => {
-      let alive = true;
-      // @ts-ignore using internal API
-      const leaf = new WorkspaceLeaf(app);
-      void (async () => {
-        try {
-          await leaf.openFile(entry.file, {
-            state: { mode: "source", source: false },
-          });
-          if (!alive) return;
-
-          const view = leaf.view;
-          if (!(view instanceof MarkdownView)) {
-            node.replaceChildren();
-            const err = node.createDiv("bases-feed-error");
-            err.setText("Failed to load Markdown editor");
-            return;
-          }
-
-          node.replaceChildren(view.containerEl);
-        } catch (e) {
-          if (alive) console.error("Error setting up editor:", e);
-        }
-      })();
-
-      return () => {
-        alive = false;
-        node.replaceChildren();
-      };
-    },
-    [app, entry.file],
-  );
-
-  return (
-    <div className="bases-feed-entry" onContextMenu={handleContextMenu}>
-      <div className="bases-feed-entry-header">
-        <a
-          className="bases-feed-entry-title"
-          onClick={handleTitleClick}
-          onMouseEnter={handleHover}
-          href="#"
-        >
-          {entry.file.basename}
-        </a>
-      </div>
-
-      <div className="bases-feed-entry-content">
-        <div
-          ref={setEditorHost}
-          className="bases-feed-entry-editor"
-          style={
-            {
-              "--metadata-display-editing": showProperties ? "block" : "none",
-            } as React.CSSProperties
-          }
-        />
-      </div>
-    </div>
-  );
-};
 
 // Props
 
@@ -217,6 +161,11 @@ type FeedReactViewProps = {
   onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
   scrollElement: HTMLElement;
   showProperties: boolean;
+  showLinkedMentions: boolean;
+  contentMode: ContentMode;
+  hiddenContent: Set<string>;
+  scopeTerm: string | null;
+  hostBasename: string | null;
   multipleColumns?: boolean;
   maxCardWidth?: number;
 };
@@ -227,13 +176,11 @@ type SingleColumnViewProps = {
   onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
   scrollElement: HTMLElement;
   showProperties: boolean;
+  showLinkedMentions: boolean;
+  contentMode: ContentMode;
+  hiddenContent: Set<string>;
+  scopeTerm: string | null;
+  hostBasename: string | null;
   maxCardWidth: number;
 };
 
-type FeedEntryProps = {
-  entry: BasesEntry;
-  app: App;
-  showProperties: boolean;
-  onEntryClick: (entry: BasesEntry, isModEvent: boolean) => void;
-  onEntryContextMenu: (evt: React.MouseEvent, entry: BasesEntry) => void;
-};

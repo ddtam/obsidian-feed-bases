@@ -1,5 +1,8 @@
 import { Plugin } from "obsidian";
 import { FeedView, FeedViewType } from "./feed-view";
+import { clearContentCache } from "./content-cache";
+import { CONTENT_MODE_DEFAULT } from "./FeedEntryCard";
+import { HIDDEN_CONTENT_DEFAULT } from "./hidden-content";
 
 export default class ObsidianFeedPlugin extends Plugin {
   onload() {
@@ -30,9 +33,41 @@ export default class ObsidianFeedPlugin extends Plugin {
           max: 800,
           step: 10,
         },
+        {
+          key: "showLinkedMentions",
+          type: "toggle",
+          displayName: "Show linked mentions",
+          default: false,
+        },
+        {
+          key: "hiddenContent",
+          type: "text",
+          displayName: "Hide content (comma-separated)",
+          default: HIDDEN_CONTENT_DEFAULT,
+        },
+        {
+          key: "sectionScope",
+          type: "text",
+          displayName: "Scope to section mentioning (blank = host note)",
+          default: "",
+        },
+        {
+          key: "contentMode",
+          type: "dropdown",
+          displayName: "Card content",
+          default: CONTENT_MODE_DEFAULT,
+          options: {
+            "excerpt-edit": "Excerpt, editable on click",
+            excerpt: "Excerpt only (read-only)",
+            editor: "Live editor",
+          },
+        },
       ],
     });
   }
 
-  onunload() {}
+  onunload() {
+    // Module-level state; without this it survives a plugin reload.
+    clearContentCache();
+  }
 }

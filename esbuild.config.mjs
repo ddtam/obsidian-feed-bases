@@ -93,6 +93,14 @@ const buildOptions = {
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
+	// Without this define esbuild resolves React's NODE_ENV ternary to "development",
+	// so the released plugin ships react-dom.development.js. That also leaves
+	// <StrictMode> active, which double-invokes ref callbacks — and every feed card
+	// mounts its editor from a ref callback, so each one built two WorkspaceLeaves.
+	define: {
+		"process.env.NODE_ENV": prod ? '"production"' : '"development"',
+	},
+	minify: prod,
 	outfile: resolve(outDir, "main.js"),
 	plugins: installingToVault ? [syncSidecarsPlugin] : [],
 };
