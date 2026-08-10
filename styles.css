@@ -237,28 +237,42 @@
 }
 
 /*
- * NOT SOLVED — do not re-attempt these without new evidence.
+ * Pin the width of a base embed that contains a feed.
  *
- * Symptom: scrolling an embedded feed past a tall card (the table of images in
- * 2026-08-06 Work Log) makes `.bases-view` go 640px -> 624px and back. 16px is
- * a scrollbar width, and it is `.bases-view`'s own width that changes, not its
- * content box, so the scrollbar belongs to an ancestor rather than to anything
- * the feed owns.
+ * Symptom this fixes: scrolling an embedded feed made every card's width
+ * oscillate by exactly 16px, worst around tables, and `maxCardWidth` never
+ * reached the width it was set to.
  *
- * Tried and reverted:
- *   - `scrollbar-gutter: stable` on the feed's own scrollEl: no effect on the
- *     width, and it made that gutter permanently visible.
- *   - the same on `.cm-scroller:has(.bases-feed-container)` and friends: no
- *     effect either, which suggests the scroller that actually toggles is not
- *     one of those, or its scrollbar is an overlay that `scrollbar-gutter`
- *     does not apply to.
- *   - `display: block; overflow-x: auto` on tables: setting one axis to `auto`
- *     promotes the other from `visible` to `auto`, so this added a *vertical*
- *     scrollbar to every table. Actively worse.
+ * Cause — confirmed by instrumenting a live Obsidian over CDP, not inferred.
+ * It is not a scrollbar: `.bases-embed` computes `overflow: hidden` with a
+ * zero-width scrollbar, and its parent `.cm-embed-block` stays a constant
+ * 588px while `.bases-embed` itself moves 588 -> 572. The Minimal theme sizes
+ * base embeds like tables:
  *
- * Next step is to identify which element gains the scrollbar at the moment the
- * width changes, rather than inferring it.
+ *     --table-drag-space: 16px;
+ *     --container-table-max-width: calc(var(--max-width) + var(--table-drag-space) * 2);
+ *     --container-table-margin:    calc(var(--content-margin-start) - var(--table-drag-space));
+ *
+ * so the embed's width is a percentage plus a drag-handle allowance that
+ * applies and un-applies as tables scroll through — 16px, exactly the measured
+ * delta. It also caps the embed *narrower* than `maxCardWidth` (571.8px when
+ * 700 was configured), which is why widening cards appeared to do nothing.
+ *
+ * Scoped with `:has()` so only embeds containing a feed are affected; real
+ * tables keep the theme's drag space. Harmless without Minimal, where the
+ * embed is already full width.
  */
+.cm-lang-base:has(.bases-feed-container),
+.bases-embed:has(.bases-feed-container),
+.block-language-base:has(.bases-feed-container) {
+  width: 100% !important;
+  max-width: 100% !important;
+  /* Zero the allowance at its source: pinning width alone still left the
+     embed's own inline padding toggling by the same 16px. */
+  --table-drag-space: 0px;
+  --container-table-margin: 0px;
+  padding-inline: 0 !important;
+}
 
 .bases-feed-error {
   color: var(--text-error);
