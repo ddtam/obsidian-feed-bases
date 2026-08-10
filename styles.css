@@ -115,6 +115,14 @@
   margin: 0 !important;
   --file-margins: 0px !important;
   --file-line-width: 100% !important;
+  /*
+   * A card grows to fit its note, so it must never scroll vertically. Left at
+   * CodeMirror's default `auto`, a scrollbar appeared at the content edge while
+   * the editor mounted and its height settled, then vanished — and because the
+   * virtualizer mounts editors continuously, that flashed the whole way down a
+   * feed. overflow-x stays auto so wide content can still scroll.
+   */
+  overflow-y: hidden !important;
 }
 
 .bases-feed-entry-editor .cm-content {
@@ -129,6 +137,10 @@
 .bases-feed-entry-editor .view-content {
   padding: 0 !important;
   height: auto !important;
+  /* Obsidian defaults this to overflow: auto for a full-height pane. Here the
+   * pane is a card sized to its content, so the scrollbar is only ever a
+   * transient artifact of mounting. See the note on .cm-scroller above. */
+  overflow: hidden !important;
 }
 
 .bases-feed-entry-editor .view-header,
