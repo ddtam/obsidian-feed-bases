@@ -2,7 +2,8 @@ import { BasesEntry } from "obsidian";
 import React, { useCallback, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useApp } from "./hooks";
-import { ContentMode, FeedEntryCard } from "./FeedEntryCard";
+import { FeedEntryCard } from "./FeedEntryCard";
+import { FEED_DEFAULTS, type ContentMode } from "./options";
 import { MasonryView } from "./MasonryView";
 import {
   CONTAINER_PADDING,
@@ -21,8 +22,8 @@ export const FeedReactView: React.FC<FeedReactViewProps> = ({
   hiddenContent,
   scopeTerm,
   hostBasename,
-  multipleColumns = false,
-  maxCardWidth = 400,
+  multipleColumns = FEED_DEFAULTS.multipleColumns,
+  maxCardWidth = FEED_DEFAULTS.maxCardWidth,
 }) => {
   // Conditionally render masonry or single column view
   if (multipleColumns) {

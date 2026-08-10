@@ -2,9 +2,10 @@ import { BasesEntry, BasesView, Menu, QueryController, TFile } from "obsidian";
 import { StrictMode } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { FeedReactView } from "./FeedReactView";
-import { asContentMode } from "./FeedEntryCard";
+
 import { AppContext } from "./context";
-import { HIDDEN_CONTENT_DEFAULT, parseHiddenContent } from "./hidden-content";
+import { parseHiddenContent } from "./hidden-content";
+import { asContentMode, FEED_DEFAULTS } from "./options";
 import { HiddenContentStyles } from "./hidden-content-styles";
 
 export const FeedViewType = "feed";
@@ -103,18 +104,22 @@ export class FeedView extends BasesView {
     }
 
     const showProperties =
-      (this.config.get("showProperties") as boolean | undefined) ?? false;
+      (this.config.get("showProperties") as boolean | undefined) ??
+      FEED_DEFAULTS.showProperties;
     const multipleColumns =
-      (this.config.get("multipleColumns") as boolean | undefined) ?? false;
+      (this.config.get("multipleColumns") as boolean | undefined) ??
+      FEED_DEFAULTS.multipleColumns;
     const maxCardWidth =
-      (this.config.get("maxCardWidth") as number | undefined) ?? 400;
+      (this.config.get("maxCardWidth") as number | undefined) ??
+      FEED_DEFAULTS.maxCardWidth;
     const showLinkedMentions =
-      (this.config.get("showLinkedMentions") as boolean | undefined) ?? false;
+      (this.config.get("showLinkedMentions") as boolean | undefined) ??
+      FEED_DEFAULTS.showLinkedMentions;
 
     const contentMode = asContentMode(this.config.get("contentMode"));
     const hiddenContent = this.hiddenContentSet(
       (this.config.get("hiddenContent") as string | undefined) ??
-        HIDDEN_CONTENT_DEFAULT,
+        FEED_DEFAULTS.hiddenContent,
     );
 
     // Editor mode can only hide this content with CSS; excerpt mode strips it
@@ -187,7 +192,8 @@ export class FeedView extends BasesView {
    */
   private resolveScopeTerm(hostFile: TFile | null): string | null {
     const configured = (
-      (this.config.get("sectionScope") as string | undefined) ?? ""
+      (this.config.get("sectionScope") as string | undefined) ??
+      FEED_DEFAULTS.sectionScope
     ).trim();
     if (!configured) return null;
 

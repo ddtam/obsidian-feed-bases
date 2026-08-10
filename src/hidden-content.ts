@@ -17,8 +17,6 @@
  * Trade-off worth knowing: a callout literally written `> [!base]` is also hit
  * by the token `base`. Unlikely, and the price of kind-matching.
  */
-export const HIDDEN_CONTENT_DEFAULT = "todoist-task, todoist, base";
-
 export function parseHiddenContent(raw: string | undefined): Set<string> {
   if (!raw) return new Set();
   return new Set(

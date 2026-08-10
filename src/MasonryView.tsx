@@ -7,7 +7,8 @@ import React, {
   useState,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ContentMode, FeedEntryCard } from "./FeedEntryCard";
+import { FeedEntryCard } from "./FeedEntryCard";
+import type { ContentMode } from "./options";
 import {
   CONTAINER_PADDING,
   EDITOR_OVERSCAN,

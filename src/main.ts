@@ -1,8 +1,7 @@
 import { Plugin } from "obsidian";
 import { FeedView, FeedViewType } from "./feed-view";
 import { clearContentCache } from "./content-cache";
-import { CONTENT_MODE_DEFAULT } from "./FeedEntryCard";
-import { HIDDEN_CONTENT_DEFAULT } from "./hidden-content";
+import { FEED_DEFAULTS } from "./options";
 
 export default class ObsidianFeedPlugin extends Plugin {
   onload() {
@@ -16,13 +15,13 @@ export default class ObsidianFeedPlugin extends Plugin {
           key: "showProperties",
           type: "toggle",
           displayName: "Show note properties (experimental)",
-          default: false,
+          default: FEED_DEFAULTS.showProperties,
         },
         {
           key: "multipleColumns",
           type: "toggle",
           displayName: "Show notes in multiple columns (experimental)",
-          default: false,
+          default: FEED_DEFAULTS.multipleColumns,
         },
         {
           key: "maxCardWidth",
@@ -32,7 +31,7 @@ export default class ObsidianFeedPlugin extends Plugin {
           // stretches a long way in a 400px column. Slide to the max for
           // effectively full width.
           displayName: "Maximum card width",
-          default: 700,
+          default: FEED_DEFAULTS.maxCardWidth,
           min: 200,
           max: 2000,
           step: 20,
@@ -41,19 +40,19 @@ export default class ObsidianFeedPlugin extends Plugin {
           key: "showLinkedMentions",
           type: "toggle",
           displayName: "Show linked mentions",
-          default: false,
+          default: FEED_DEFAULTS.showLinkedMentions,
         },
         {
           key: "hiddenContent",
           type: "text",
           displayName: "Hide content (comma-separated)",
-          default: HIDDEN_CONTENT_DEFAULT,
+          default: FEED_DEFAULTS.hiddenContent,
         },
         {
           key: "contentMode",
           type: "dropdown",
           displayName: "Card content",
-          default: CONTENT_MODE_DEFAULT,
+          default: FEED_DEFAULTS.contentMode,
           options: {
             editor: "Live editor",
             excerpt: "Excerpt only (read-only)",
@@ -67,7 +66,7 @@ export default class ObsidianFeedPlugin extends Plugin {
           // base sits in. Only has an effect in the excerpt content modes.
           displayName: "Scope to section (blank = off, or 'auto')",
           placeholder: "auto, or a term like [[Project X]]",
-          default: "",
+          default: FEED_DEFAULTS.sectionScope,
         },
       ],
     });
