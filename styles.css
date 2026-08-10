@@ -236,6 +236,32 @@
   height: auto;
 }
 
+/*
+ * Tables are the other source of width churn, and a worse one: a wide table
+ * sizes its columns from its content, so it can force the card's content box
+ * wider than the card. Whatever scrollbar that overflow lands on then toggles,
+ * and a toggling scrollbar changes width, which reflows everything.
+ *
+ * Giving tables their own horizontal scroll means they can never widen the
+ * card — the overflow is contained where it originates. `width: fit-content`
+ * keeps narrow tables from stretching to full width as a side effect of
+ * `display: block`.
+ */
+.bases-feed-entry-editor table,
+.bases-feed-entry-excerpt table {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.bases-feed-entry-editor .cm-table-widget,
+.bases-feed-entry-editor .table-wrapper,
+.bases-feed-entry-excerpt .table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .bases-feed-error {
   color: var(--text-error);
   font-size: var(--font-ui-small);
